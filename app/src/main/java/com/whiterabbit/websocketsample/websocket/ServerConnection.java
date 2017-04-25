@@ -13,67 +13,68 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
 
+public class ServerConnection {
+    private WebSocket mWebSocket;
+    private OkHttpClient mClient;
+    private String mServerUrl;
+    private PublishRelay<String> mMessageRelay;
+    private PublishRelay<Boolean> mStatusRelay;
 
-public class ServerConnection extends WebSocketListener {
-    private WebSocket webSocket;
-    private OkHttpClient client;
-    private String serverUrl;
-    private PublishRelay<String> messageRelay;
-    private PublishRelay<Boolean> statusRelay;
+    private class SocketListener extends WebSocketListener {
+        @Override
+        public void onOpen(WebSocket webSocket, Response response) {
+            mStatusRelay.accept(true);
+        }
+
+        @Override
+        public void onMessage(WebSocket webSocket, String text) {
+            mMessageRelay.accept(text);
+        }
+
+        @Override
+        public void onClosed(WebSocket webSocket, int code, String reason) {
+            mStatusRelay.accept(false);
+        }
+
+        @Override
+        public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+            disconnect();
+        }
+    }
 
     public ServerConnection(String url) {
-        client = new OkHttpClient.Builder()
+        mClient = new OkHttpClient.Builder()
                 .readTimeout(3,  TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
                 .build();
 
-        serverUrl = url;
+        mServerUrl = url;
 
-        messageRelay = PublishRelay.create();
-        statusRelay = PublishRelay.create();
+        mMessageRelay = PublishRelay.create();
+        mStatusRelay = PublishRelay.create();
     }
 
     public void connect() {
         Request request = new Request.Builder()
-                .url(serverUrl)
+                .url(mServerUrl)
                 .build();
-        webSocket = client.newWebSocket(request, this);
+        mWebSocket = mClient.newWebSocket(request, new SocketListener());
     }
 
     public void disconnect() {
-        webSocket.cancel();
-        statusRelay.accept(false);
+        mWebSocket.cancel();
+        mStatusRelay.accept(false);
     }
 
     public void sendMessage(String message) {
-        webSocket.send(message);
-    }
-
-    @Override
-    public void onMessage(WebSocket webSocket, String text) {
-        messageRelay.accept(text);
-    }
-
-    @Override
-    public void onOpen(WebSocket webSocket, Response response) {
-        statusRelay.accept(true);
-    }
-
-    @Override
-    public void onClosed(WebSocket webSocket, int code, String reason) {
-        statusRelay.accept(false);
-    }
-
-    @Override
-    public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-        disconnect();
+        mWebSocket.send(message);
     }
 
     public Observable<String> messagesObservable() {
-        return messageRelay;
+        return mMessageRelay;
     }
 
     public Observable<Boolean> statusObservable() {
-        return statusRelay;
+        return mStatusRelay;
     }
 }
