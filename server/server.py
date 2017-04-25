@@ -17,7 +17,7 @@ class MyServerProtocol(WebSocketServerProtocol):
             print("Text message received: {0}".format(payload.decode('utf8')))
 
         # echo back message verbatim
-        self.sendMessage(payload, isBinary)
+        self.sendMessage("from server: " + payload, isBinary)
 
     def onClose(self, wasClean, code, reason):
         print("WebSocket connection closed: {0}".format(reason))

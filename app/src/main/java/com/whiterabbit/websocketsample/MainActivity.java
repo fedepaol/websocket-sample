@@ -19,7 +19,7 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
-    private final String SERVER_URL = "";
+    private final String SERVER_URL = "ws://10.0.2.2:9000";
     private ServerConnection mServerConnection;
 
     @Bind(R.id.server_connection_status)
