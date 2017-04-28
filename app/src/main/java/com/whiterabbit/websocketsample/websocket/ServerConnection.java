@@ -1,11 +1,11 @@
 package com.whiterabbit.websocketsample.websocket;
 
 
-import com.jakewharton.rxrelay2.PublishRelay;
+import android.os.Handler;
+import android.os.Message;
 
 import java.util.concurrent.TimeUnit;
 
-import io.reactivex.Observable;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -14,26 +14,41 @@ import okhttp3.WebSocketListener;
 
 
 public class ServerConnection {
+    public enum ConnectionStatus {
+        DISCONNECTED,
+        CONNECTED
+    }
+
+    public interface ServerListener {
+        void onNewMessage(String message);
+        void onStatusChange(ConnectionStatus status);
+    }
+
     private WebSocket mWebSocket;
     private OkHttpClient mClient;
     private String mServerUrl;
-    private PublishRelay<String> mMessageRelay;
-    private PublishRelay<Boolean> mStatusRelay;
+    private Handler mMessageHandler;
+    private Handler mStatusHandler;
+    private ServerListener mListener;
+
 
     private class SocketListener extends WebSocketListener {
         @Override
         public void onOpen(WebSocket webSocket, Response response) {
-            mStatusRelay.accept(true);
+            Message m = mStatusHandler.obtainMessage(0, ConnectionStatus.CONNECTED);
+            mStatusHandler.dispatchMessage(m);
         }
 
         @Override
         public void onMessage(WebSocket webSocket, String text) {
-            mMessageRelay.accept(text);
+            Message m = mMessageHandler.obtainMessage(0, text);
+            mMessageHandler.dispatchMessage(m);
         }
 
         @Override
         public void onClosed(WebSocket webSocket, int code, String reason) {
-            mStatusRelay.accept(false);
+            Message m = mStatusHandler.obtainMessage(0, ConnectionStatus.DISCONNECTED);
+            mStatusHandler.dispatchMessage(m);
         }
 
         @Override
@@ -49,32 +64,28 @@ public class ServerConnection {
                 .build();
 
         mServerUrl = url;
-
-        mMessageRelay = PublishRelay.create();
-        mStatusRelay = PublishRelay.create();
     }
 
-    public void connect() {
+    public void connect(ServerListener listener) {
         Request request = new Request.Builder()
                 .url(mServerUrl)
                 .build();
         mWebSocket = mClient.newWebSocket(request, new SocketListener());
+        mListener = listener;
+        mMessageHandler = new Handler(msg -> {mListener.onNewMessage((String) msg.obj);
+            return true;});
+        mStatusHandler = new Handler(msg -> { mListener.onStatusChange((ConnectionStatus) msg.obj);
+            return true;});
     }
 
     public void disconnect() {
         mWebSocket.cancel();
-        mStatusRelay.accept(false);
+        mListener = null;
+        mMessageHandler.removeCallbacksAndMessages(null);
+        mStatusHandler.removeCallbacksAndMessages(null);
     }
 
     public void sendMessage(String message) {
         mWebSocket.send(message);
-    }
-
-    public Observable<String> messagesObservable() {
-        return mMessageRelay;
-    }
-
-    public Observable<Boolean> statusObservable() {
-        return mStatusRelay;
     }
 }
