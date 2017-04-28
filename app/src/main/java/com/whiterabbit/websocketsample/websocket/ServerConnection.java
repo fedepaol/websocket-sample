@@ -36,19 +36,19 @@ public class ServerConnection {
         @Override
         public void onOpen(WebSocket webSocket, Response response) {
             Message m = mStatusHandler.obtainMessage(0, ConnectionStatus.CONNECTED);
-            mStatusHandler.dispatchMessage(m);
+            mStatusHandler.sendMessage(m);
         }
 
         @Override
         public void onMessage(WebSocket webSocket, String text) {
             Message m = mMessageHandler.obtainMessage(0, text);
-            mMessageHandler.dispatchMessage(m);
+            mMessageHandler.sendMessage(m);
         }
 
         @Override
         public void onClosed(WebSocket webSocket, int code, String reason) {
             Message m = mStatusHandler.obtainMessage(0, ConnectionStatus.DISCONNECTED);
-            mStatusHandler.dispatchMessage(m);
+            mStatusHandler.sendMessage(m);
         }
 
         @Override
